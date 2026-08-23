@@ -1,0 +1,11 @@
+{
+  "name": "daily-claim-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram Mini App: daily-claim referral bot (100% free stack).",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node test/validate.test.js",
+    "dev": "vercel dev"
+  }
+}
