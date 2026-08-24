@@ -7,15 +7,29 @@ const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
 
 // ---------- AdsGram (rewarded ads) with mock fallback ----------
 const ADSGRAM_BLOCK_ID = '44307';
-const ADSGRAM_DEBUG = true;
+const ADSGRAM_DEBUG = true; // TRUE = guaranteed test ad while testing. Set false for production (real ads + earnings).
+let _adsgram = null;
 function initAds() {
-  try { if (window.Adsgram && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID') _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID }); }
-  catch (e) { console.warn('AdsGram init failed', e); }
+  try {
+    if (window.Adsgram && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID') {
+      _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID, debug: ADSGRAM_DEBUG }); // ← debug MUST be passed
+    }
+  } catch (e) { console.warn('AdsGram init failed', e); }
 }
 function showRewardedAd() {
   return new Promise((resolve) => {
-    if (_adsgram) _adsgram.show().then((r) => resolve(!!(r && r.done))).catch(() => resolve(false));
-    else { console.log('[mock ad] add your AdsGram blockId to go live'); setTimeout(() => resolve(true), 1200); }
+    if (!_adsgram) { // SDK didn't load — mock so flow still works
+      console.log('[mock ad] AdsGram SDK not loaded');
+      setTimeout(() => resolve(true), 1200);
+      return;
+    }
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    try {
+      _adsgram.addEventListener('onError', () => finish(false));
+      _adsgram.addEventListener('onBannerNotFound', () => finish(false)); // no ad available
+    } catch (e) {}
+    _adsgram.show().then(() => finish(true)).catch(() => finish(false));
   });
 }
 
