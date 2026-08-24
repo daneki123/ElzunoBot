@@ -1,4 +1,4 @@
-// ===== Elzuno Mini App logic =====
+ // ===== Elzuno Mini App logic =====
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 const $ = (id) => document.getElementById(id);
@@ -6,7 +6,7 @@ let S = {};
 const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
 
 // ---------- AdsGram (rewarded ads) with mock fallback ----------
-const ADSGRAM_BLOCK_ID = 'YOUR_ADSGRAM_BLOCK_ID';
+const ADSGRAM_BLOCK_ID = '44307';
 let _adsgram = null;
 function initAds() {
   try { if (window.Adsgram && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID') _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID }); }
