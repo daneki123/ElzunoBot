@@ -4,6 +4,7 @@ if (tg) { tg.ready(); tg.expand(); }
 const $ = (id) => document.getElementById(id);
 let S = {};
 const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
+const PROOF_CHANNEL = 'https://t.me/elzuno_officials'; // ← your channel link
 
 // ---------- AdsGram (rewarded ads) with mock fallback ----------
 const ADSGRAM_BLOCK_ID = 'YOUR_ADSGRAM_BLOCK_ID'; // ← paste your real block ID from partner.adsgram.ai
