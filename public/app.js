@@ -167,7 +167,6 @@ $('copyBtn').addEventListener('click', async () => {
 });
 
 // ---------- Cash screen ----------
-const PROOF_CHANNEL = 'https://t.me/ElzunoProof'; // ← create this PUBLIC channel and paste its link here
 function loadPayouts() {
   const link = $('proofChannel'); if (link) link.href = PROOF_CHANNEL;
   api('/api/payouts').then((data) => {
