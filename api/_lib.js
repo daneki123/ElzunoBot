@@ -1,5 +1,5 @@
 // Shared backend helpers: Telegram initData validation + Supabase REST client.
-// Zero npm dependencies — uses Node 18+ global fetch and built-in crypto.
+// Uses Node 18+ global fetch and built-in crypto. Vercel (req, res) style.
 
 const crypto = require('crypto');
 
@@ -10,7 +10,7 @@ const CFG = {
   SUPABASE_SERVICE_ROLE: process.env.SUPABASE_SERVICE_ROLE,
   WEBAPP_URL: process.env.WEBAPP_URL,
   BOT_USERNAME: process.env.BOT_USERNAME || 'ElzunoBot',
-  ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID,   // your own Telegram user id (numeric)
+  ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID,
 
   // Economy
   BASE_CLAIM: 100,
@@ -25,7 +25,7 @@ const CFG = {
 
   // NGN withdrawal
   POINTS_PER_NAIRA: 100,        // 100 points = ₦1
-  MIN_WITHDRAWAL_NGN: 1000,     // minimum cash-out = ₦1,000
+  MIN_WITHDRAWAL_NGN: 1000,
 
   MAX_AGE_SEC: 24 * 60 * 60,
 };
@@ -68,8 +68,8 @@ async function sb(method, table, { select = '*', filter, body, prefer } = {}) {
   if (body) headers['Content-Type'] = 'application/json';
   if (prefer) headers['Prefer'] = prefer;
 
-  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  const text = await res.text();
+  const r = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const text = await r.text();
   try { return JSON.parse(text); } catch { return text; }
 }
 
@@ -86,21 +86,6 @@ const userWithdrawals = (id) => sb('GET', 'withdrawals', { select: 'id,amount_ng
 const pendingWithdrawals = () => sb('GET', 'withdrawals', { filter: { status: 'eq.pending', order: 'created_at.asc' } });
 const setWithdrawalStatus = (id, status) => sb('PATCH', 'withdrawals', { filter: { id: `eq.${id}` }, body: { status, processed_at: new Date().toISOString() }, prefer: 'return=representation' });
 
-/* ------------------------- HTTP helpers --------------------------- */
-const json = (data, status = 200) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data),
-});
-const readBody = (event) => new Promise((resolve) => {
-  if (typeof event.body === 'string') return resolve(event.body);
-  let s = '';
-  if (event.body && event.body.on) {
-    event.body.on('data', (c) => (s += c));
-    event.body.on('end', () => resolve(s));
-  } else resolve('');
-});
-
 const naira = (points) => points / CFG.POINTS_PER_NAIRA;
 
 module.exports = {
@@ -108,5 +93,5 @@ module.exports = {
   getUser, upsertUser, updateUser,
   getBank, upsertBank,
   createWithdrawal, getWithdrawal, userWithdrawals, pendingWithdrawals, setWithdrawalStatus,
-  json, readBody, naira,
+  naira,
 };

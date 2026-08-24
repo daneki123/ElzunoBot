@@ -1,37 +1,36 @@
 // Admin tools: list pending withdrawals + approve/reject (gated by ADMIN_TELEGRAM_ID).
-const { validateInitData, pendingWithdrawals, getWithdrawal, setWithdrawalStatus, getUser, updateUser, CFG, json, readBody } = require('./_lib');
+const { validateInitData, pendingWithdrawals, getWithdrawal, setWithdrawalStatus, getUser, updateUser, CFG } = require('./_lib');
 
-module.exports = async (event) => {
-  const raw = await readBody(event);
-  let payload = {};
-  try { payload = JSON.parse(raw || '{}'); } catch {}
+module.exports = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const user = validateInitData(body.initData);
+    if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
+    if (String(user.id) !== String(CFG.ADMIN_TELEGRAM_ID)) return res.status(403).json({ ok: false, error: 'forbidden' });
 
-  const user = validateInitData(payload.initData);
-  if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
-  if (String(user.id) !== String(CFG.ADMIN_TELEGRAM_ID)) return json({ ok: false, error: 'forbidden' }, 403);
+    if (body.action && body.id) {
+      const rows = await getWithdrawal(body.id);
+      if (!rows || !rows.length) return res.status(404).json({ ok: false, error: 'not_found' });
+      const w = rows[0];
+      if (w.status !== 'pending') return res.status(400).json({ ok: false, error: 'not_pending' });
 
-  // Approve / reject
-  if (payload.action && payload.id) {
-    const rows = await getWithdrawal(payload.id);
-    if (!rows || !rows.length) return json({ ok: false, error: 'not_found' }, 404);
-    const w = rows[0];
-    if (w.status !== 'pending') return json({ ok: false, error: 'not_pending' }, 400);
-
-    if (payload.action === 'approve') {
-      await setWithdrawalStatus(w.id, 'paid');
-      return json({ ok: true, status: 'paid' });
+      if (body.action === 'approve') {
+        await setWithdrawalStatus(w.id, 'paid');
+        return res.status(200).json({ ok: true, status: 'paid' });
+      }
+      if (body.action === 'reject') {
+        await setWithdrawalStatus(w.id, 'rejected');
+        const u = await getUser(w.telegram_id);
+        if (u && u.length) await updateUser(w.telegram_id, { balance: (u[0].balance || 0) + w.points_spent });
+        return res.status(200).json({ ok: true, status: 'rejected' });
+      }
+      return res.status(400).json({ ok: false, error: 'bad_action' });
     }
-    if (payload.action === 'reject') {
-      await setWithdrawalStatus(w.id, 'rejected');
-      // Refund the points
-      const u = await getUser(w.telegram_id);
-      if (u && u.length) await updateUser(w.telegram_id, { balance: (u[0].balance || 0) + w.points_spent });
-      return json({ ok: true, status: 'rejected' });
-    }
-    return json({ ok: false, error: 'bad_action' }, 400);
+
+    const list = await pendingWithdrawals();
+    return res.status(200).json({ ok: true, pending: Array.isArray(list) ? list : [] });
+  } catch (e) {
+    console.error('admin error:', e && e.message);
+    return res.status(500).json({ ok: false, error: 'server_error' });
   }
-
-  // List pending
-  const list = await pendingWithdrawals();
-  return json({ ok: true, pending: Array.isArray(list) ? list : [] });
 };

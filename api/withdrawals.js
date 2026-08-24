@@ -1,14 +1,16 @@
 // User's withdrawal history.
-const { validateInitData, userWithdrawals, json, readBody } = require('./_lib');
+const { validateInitData, userWithdrawals } = require('./_lib');
 
-module.exports = async (event) => {
-  const raw = await readBody(event);
-  let payload = {};
-  try { payload = JSON.parse(raw || '{}'); } catch {}
+module.exports = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const user = validateInitData(body.initData || req.query.initData);
+    if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
-  const user = validateInitData(payload.initData || event.queryStringParameters?.initData);
-  if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
-
-  const list = await userWithdrawals(user.id);
-  return json({ ok: true, withdrawals: Array.isArray(list) ? list : [] });
+    const list = await userWithdrawals(user.id);
+    return res.status(200).json({ ok: true, withdrawals: Array.isArray(list) ? list : [] });
+  } catch (e) {
+    console.error('withdrawals error:', e && e.message);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
 };
