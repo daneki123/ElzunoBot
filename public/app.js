@@ -5,31 +5,31 @@ const $ = (id) => document.getElementById(id);
 let S = {};
 const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
 
-// ---------- AdsGram (rewarded ads) with mock fallback ----------
+// ---------- AdsGram (rewarded ads) ----------
 const ADSGRAM_BLOCK_ID = '44307';
-const ADSGRAM_DEBUG = true; // TRUE = guaranteed test ad while testing. Set false for production (real ads + earnings).
+const ADSGRAM_DEBUG = true; // TRUE = test ad while checking. Set false later for real ads + earnings.
 let _adsgram = null;
 function initAds() {
   try {
-    if (window.Adsgram && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID') {
-      _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID, debug: ADSGRAM_DEBUG }); // ← debug MUST be passed
+    if (window.Adsgram) {
+      _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID, debug: ADSGRAM_DEBUG });
+    } else {
+      console.warn('AdsGram SDK NOT loaded — check the script tag in index.html');
     }
   } catch (e) { console.warn('AdsGram init failed', e); }
 }
 function showRewardedAd() {
   return new Promise((resolve) => {
-    if (!_adsgram) { // SDK didn't load — mock so flow still works
-      console.log('[mock ad] AdsGram SDK not loaded');
-      setTimeout(() => resolve(true), 1200);
-      return;
-    }
+    if (!window.Adsgram) { $('adStatus').textContent = '⚠️ AdsGram SDK not loaded (check script in index.html)'; setTimeout(() => resolve(false), 2000); return; }
+    if (!_adsgram) { $('adStatus').textContent = '⚠️ Ad not ready'; setTimeout(() => resolve(false), 2000); return; }
     let done = false;
-    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    const finish = (ok, msg) => { if (!done) { done = true; $('adStatus').textContent = msg; resolve(ok); } };
     try {
-      _adsgram.addEventListener('onError', () => finish(false));
-      _adsgram.addEventListener('onBannerNotFound', () => finish(false)); // no ad available
+      _adsgram.addEventListener('onBannerNotFound', () => finish(false, 'No ad available yet — try again'));
+      _adsgram.addEventListener('onError', () => finish(false, 'Ad error — try again'));
     } catch (e) {}
-    _adsgram.show().then(() => finish(true)).catch(() => finish(false));
+    $('adStatus').textContent = 'Loading ad…';
+    _adsgram.show().then(() => finish(true, '+50 pts! 🎉')).catch(() => finish(false, 'Ad skipped'));
   });
 }
 
@@ -144,10 +144,10 @@ $('claimBtn').addEventListener('click', async () => {
 
 // ---------- Actions: rewarded ad ----------
 $('adBtn').addEventListener('click', async () => {
-  $('adBtn').disabled = true; $('adStatus').textContent = 'Playing ad…';
+  $('adBtn').disabled = true; $('adStatus').textContent = 'Loading ad…';
   const ok = await showRewardedAd();
-  if (!ok) { $('adStatus').textContent = 'Ad skipped.'; $('adBtn').disabled = false; return; }
-  if (DEMO) { hap('success'); S.balance += 50; S.naira = S.balance / 100; renderBalance(); $('adStatus').textContent = '+50 pts! 🎉'; $('adBtn').disabled = false; return; }
+  if (!ok) { $('adBtn').disabled = false; return; }
+  if (DEMO) { hap('success'); S.balance += 50; S.naira = S.balance / 100; renderBalance(); $('adBtn').disabled = false; return; }
   const data = await api('/api/bonus', { initData: initData() });
   if (data.ok) { hap('success'); S.balance = data.balance; S.naira = data.balance/(S.points_per_naira||100); renderBalance(); $('adStatus').textContent = `+${data.gained} pts! 🎉`; }
   else if (data.error === 'cooldown') $('adStatus').textContent = 'Bonus ready in ' + fmtCountdown(data.retry_in_ms);
