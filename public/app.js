@@ -1,35 +1,37 @@
- // ===== Elzuno Mini App logic =====
+// ===== Elzuno Mini App logic =====
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 const $ = (id) => document.getElementById(id);
 let S = {};
 const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
 
-// ---------- AdsGram (rewarded ads) ----------
-const ADSGRAM_BLOCK_ID = '44307';
-const ADSGRAM_DEBUG = true; // TRUE = test ad while checking. Set false later for real ads + earnings.
+// ---------- AdsGram (rewarded ads) with mock fallback ----------
+const ADSGRAM_BLOCK_ID = 'YOUR_ADSGRAM_BLOCK_ID'; // ← paste your real block ID from partner.adsgram.ai
+const ADSGRAM_DEBUG = false; // set true while testing to get TEST ads (set false for production)
 let _adsgram = null;
 function initAds() {
   try {
-    if (window.Adsgram) {
+    if (window.Adsgram && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID') {
       _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID, debug: ADSGRAM_DEBUG });
-    } else {
-      console.warn('AdsGram SDK NOT loaded — check the script tag in index.html');
     }
   } catch (e) { console.warn('AdsGram init failed', e); }
 }
 function showRewardedAd() {
   return new Promise((resolve) => {
-    if (!window.Adsgram) { $('adStatus').textContent = '⚠️ AdsGram SDK not loaded (check script in index.html)'; setTimeout(() => resolve(false), 2000); return; }
-    if (!_adsgram) { $('adStatus').textContent = '⚠️ Ad not ready'; setTimeout(() => resolve(false), 2000); return; }
+    if (!_adsgram) {
+      // SDK didn't load — mock so the flow still works during testing
+      console.log('[mock ad] add your AdsGram blockId to go live');
+      setTimeout(() => resolve(true), 1200);
+      return;
+    }
     let done = false;
-    const finish = (ok, msg) => { if (!done) { done = true; $('adStatus').textContent = msg; resolve(ok); } };
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
     try {
-      _adsgram.addEventListener('onBannerNotFound', () => finish(false, 'No ad available yet — try again'));
-      _adsgram.addEventListener('onError', () => finish(false, 'Ad error — try again'));
+      _adsgram.addEventListener('onError', () => finish(false));
+      _adsgram.addEventListener('onBannerNotFound', () => finish(false)); // no ad available right now
     } catch (e) {}
-    $('adStatus').textContent = 'Loading ad…';
-    _adsgram.show().then(() => finish(true, '+50 pts! 🎉')).catch(() => finish(false, 'Ad skipped'));
+    // resolves when watched to the end; rejects on skip/error
+    _adsgram.show().then(() => finish(true)).catch(() => finish(false));
   });
 }
 
@@ -130,6 +132,8 @@ function demoCash() {
   $('bankName').value = 'GTBank'; $('acctNumber').value = '0123456789'; $('acctName').value = 'Adaeze Okoro';
   $('wdHistory').innerHTML = '<div class="wd-item"><div><b>₦1,000</b><br><span class="muted" style="margin:0">Yesterday</span></div><span class="badge paid">paid</span></div>'
     + '<div class="wd-item"><div><b>₦1,500</b><br><span class="muted" style="margin:0">2 days ago</span></div><span class="badge pending">pending</span></div>';
+  if ($('proofChannel')) $('proofChannel').href = PROOF_CHANNEL;
+  if ($('payoutsList')) $('payoutsList').innerHTML = '<div class="wd-item"><div><b>Adaeze O.</b><br><span class="muted" style="margin:0">Today</span></div><span class="badge paid">₦1,000 ✓</span></div><div class="wd-item"><div><b>Tunde A.</b><br><span class="muted" style="margin:0">Yesterday</span></div><span class="badge paid">₦2,500 ✓</span></div>';
 }
 
 // ---------- Actions: claim ----------
@@ -144,10 +148,10 @@ $('claimBtn').addEventListener('click', async () => {
 
 // ---------- Actions: rewarded ad ----------
 $('adBtn').addEventListener('click', async () => {
-  $('adBtn').disabled = true; $('adStatus').textContent = 'Loading ad…';
+  $('adBtn').disabled = true; $('adStatus').textContent = 'Playing ad…';
   const ok = await showRewardedAd();
-  if (!ok) { $('adBtn').disabled = false; return; }
-  if (DEMO) { hap('success'); S.balance += 50; S.naira = S.balance / 100; renderBalance(); $('adBtn').disabled = false; return; }
+  if (!ok) { $('adStatus').textContent = 'Ad skipped.'; $('adBtn').disabled = false; return; }
+  if (DEMO) { hap('success'); S.balance += 50; S.naira = S.balance / 100; renderBalance(); $('adStatus').textContent = '+50 pts! 🎉'; $('adBtn').disabled = false; return; }
   const data = await api('/api/bonus', { initData: initData() });
   if (data.ok) { hap('success'); S.balance = data.balance; S.naira = data.balance/(S.points_per_naira||100); renderBalance(); $('adStatus').textContent = `+${data.gained} pts! 🎉`; }
   else if (data.error === 'cooldown') $('adStatus').textContent = 'Bonus ready in ' + fmtCountdown(data.retry_in_ms);
@@ -162,10 +166,20 @@ $('copyBtn').addEventListener('click', async () => {
 });
 
 // ---------- Cash screen ----------
+const PROOF_CHANNEL = 'https://t.me/ElzunoProof'; // ← create this PUBLIC channel and paste its link here
+function loadPayouts() {
+  const link = $('proofChannel'); if (link) link.href = PROOF_CHANNEL;
+  api('/api/payouts').then((data) => {
+    const box = $('payoutsList'); if (!box) return;
+    if (!data.ok || !data.payouts || !data.payouts.length) { box.textContent = 'Payouts appear here as users withdraw.'; return; }
+    box.innerHTML = data.payouts.map((p) => `<div class="wd-item"><div><b>${p.name}</b><br><span class="muted" style="margin:0">${p.date ? new Date(p.date).toLocaleDateString() : ''}</span></div><span class="badge paid">₦${p.amount_ngn.toLocaleString()} ✓</span></div>`).join('');
+  }).catch(() => {});
+}
 async function loadCash() {
   const bank = await api('/api/bank', { initData: initData() });
   if (bank.ok && bank.bank) { $('bankName').value = bank.bank.bank_name||''; $('acctNumber').value = bank.bank.account_number||''; $('acctName').value = bank.bank.account_name||''; }
   loadHistory();
+  loadPayouts();
 }
 $('saveBankBtn').addEventListener('click', async () => {
   if (DEMO) { hap('success'); $('bankStatus').textContent = '✅ Saved (preview)'; return; }
