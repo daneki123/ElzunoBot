@@ -7,7 +7,7 @@ const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
 
 // ---------- AdsGram (rewarded ads) with mock fallback ----------
 const ADSGRAM_BLOCK_ID = '44307';
-let _adsgram = null;
+const ADSGRAM_DEBUG = true;
 function initAds() {
   try { if (window.Adsgram && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID') _adsgram = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID }); }
   catch (e) { console.warn('AdsGram init failed', e); }
