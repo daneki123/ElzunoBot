@@ -7,8 +7,8 @@ const DEMO = !tg || !tg.initData; // true when viewed outside Telegram (preview)
 const PROOF_CHANNEL = 'https://t.me/elzuno_officials'; // ← your channel link
 
 // ---------- AdsGram (rewarded ads) with mock fallback ----------
-const ADSGRAM_BLOCK_ID = 'YOUR_ADSGRAM_BLOCK_ID'; // ← paste your real block ID from partner.adsgram.ai
-const ADSGRAM_DEBUG = false; // set true while testing to get TEST ads (set false for production)
+const ADSGRAM_BLOCK_ID = '44688'; // ← paste your real block ID from partner.adsgram.ai
+const ADSGRAM_DEBUG = true; // set true while testing to get TEST ads (set false for production)
 let _adsgram = null;
 function initAds() {
   try {
