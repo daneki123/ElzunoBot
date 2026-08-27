@@ -174,3 +174,7 @@ body{font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;background
 
 /* ============ PREVIEW BANNER ============ */
 .preview-banner{background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.4);color:#a7f0ff;border-radius:14px;padding:10px 14px;font-size:12px;margin-bottom:14px;line-height:1.5;backdrop-filter:blur(8px)}
+
+/* Proof of payouts channel button */
+.btn-proof{display:block;text-align:center;margin-top:12px;padding:13px;border-radius:14px;font-weight:800;font-size:14px;color:#fff;text-decoration:none;background:linear-gradient(135deg,#00E5FF,#5B8CFF 45%,#7C4DFF);background-size:180% 180%;box-shadow:0 8px 22px rgba(124,77,255,.42);animation:gshift 6s ease infinite;transition:transform .08s}
+.btn-proof:active{transform:scale(.98)}
