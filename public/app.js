@@ -167,12 +167,18 @@ $('copyBtn').addEventListener('click', async () => {
 });
 
 // ---------- Cash screen ----------
+const PROOF_CHANNEL = 'https://t.me/elzuno_officials'; // your public channel
 function loadPayouts() {
-  const link = $('proofChannel'); if (link) link.href = PROOF_CHANNEL;
+  ['proofChannel', 'homeProofChannel'].forEach((id) => { const l = $(id); if (l) l.href = PROOF_CHANNEL; });
   api('/api/payouts').then((data) => {
-    const box = $('payoutsList'); if (!box) return;
-    if (!data.ok || !data.payouts || !data.payouts.length) { box.textContent = 'Payouts appear here as users withdraw.'; return; }
-    box.innerHTML = data.payouts.map((p) => `<div class="wd-item"><div><b>${p.name}</b><br><span class="muted" style="margin:0">${p.date ? new Date(p.date).toLocaleDateString() : ''}</span></div><span class="badge paid">₦${p.amount_ngn.toLocaleString()} ✓</span></div>`).join('');
+    const item = (p) => `<div class="wd-item"><div><b>${p.name}</b><br><span class="muted" style="margin:0">${p.date ? new Date(p.date).toLocaleDateString() : ''}</span></div><span class="badge paid">₦${p.amount_ngn.toLocaleString()} ✓</span></div>`;
+    const fill = (box, limit) => {
+      if (!box) return;
+      if (!data.ok || !data.payouts || !data.payouts.length) { box.textContent = 'Payouts appear here as users withdraw.'; return; }
+      box.innerHTML = data.payouts.slice(0, limit).map(item).join('');
+    };
+    fill($('homePayoutsList'), 3);
+    fill($('payoutsList'), 12);
   }).catch(() => {});
 }
 async function loadCash() {
